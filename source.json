@@ -1,0 +1,31 @@
+{
+  "name": "Jogos da Isabella",
+  "identifier": "br.isabellaradael.source.click",
+  "subtitle": "Jogos feitos pela Isabella",
+  "apps": [
+    {
+      "name": "Cabo de Guerra",
+      "bundleIdentifier": "br.isabellaradael.click",
+      "developerName": "Isabella Radael",
+      "subtitle": "Cabo de guerra numerico para dois",
+      "localizedDescription": "Dois jogadores, um celular. Cada lado toca na sua metade da tela para puxar o placar. Quem chegar a 5 primeiro ganha.",
+      "iconURL": "https://raw.githubusercontent.com/isabellaR-a6/click/main/src/assets/icon.png",
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {}
+      },
+      "versions": [
+        {
+          "version": "1.0.4",
+          "buildVersion": "4",
+          "date": "2026-09-12",
+          "downloadURL": "https://github.com/isabellaR-a6/click/releases/download/build-4/click.ipa",
+          "size": 28268894,
+          "localizedDescription": "Build 4.",
+          "minOSVersion": "15.0"
+        }
+      ]
+    }
+  ],
+  "news": []
+}
