@@ -16,12 +16,12 @@
       },
       "versions": [
         {
-          "version": "1.0.4",
-          "buildVersion": "4",
+          "version": "1.0.5",
+          "buildVersion": "5",
           "date": "2026-09-12",
-          "downloadURL": "https://github.com/isabellaR-a6/click/releases/download/build-4/click.ipa",
-          "size": 28268894,
-          "localizedDescription": "Build 4.",
+          "downloadURL": "https://github.com/isabellaR-a6/click/releases/download/build-5/click.ipa",
+          "size": 28292229,
+          "localizedDescription": "Build 5.",
           "minOSVersion": "15.0"
         }
       ]
