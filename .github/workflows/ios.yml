@@ -87,6 +87,28 @@ jobs:
             echo "app: $APP" | tee -a build.log
             rm -rf Payload && mkdir -p Payload
             cp -R "$APP" Payload/
+
+            # Icone: o Flet gera o AppIcon60x60@2x mas NAO o @3x. Todo iPhone do
+            # 12 para ca e @3x, entao o sistema estica 120 -> 180 e sai borrado.
+            # Copiamos os dois ja no tamanho exato (tools/gerar_icone.py).
+            # Nao basta copiar: como o app e Flutter, o Info.plist aponta para o
+            # catalogo interno (CFBundleIconName) e o iOS ignora arquivo solto.
+            # Por isso a referencia ao catalogo sai e fica so a lista de arquivos.
+            DEST="Payload/$(basename "$APP")"
+            PB=/usr/libexec/PlistBuddy
+            PL="$DEST/Info.plist"
+            if [ -f arte/icone_180.png ] && [ -f arte/icone_120.png ]; then
+              cp arte/icone_180.png "$DEST/AppIcon60x60@3x.png"
+              cp arte/icone_120.png "$DEST/AppIcon60x60@2x.png"
+              "$PB" -c "Delete :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "$PL" 2>/dev/null || true
+              "$PB" -c "Delete :CFBundleIconFiles" "$PL" 2>/dev/null || true
+              "$PB" -c "Add :CFBundleIconFiles array" "$PL"
+              "$PB" -c "Add :CFBundleIconFiles:0 string AppIcon60x60" "$PL"
+              echo "icone: @2x e @3x copiados no tamanho exato" | tee -a build.log
+            else
+              echo "AVISO: arte/icone_*.png faltando, icone pode sair borrado" | tee -a build.log
+            fi
+
             zip -qry click.ipa Payload
             ls -lh click.ipa | tee -a build.log
           else
