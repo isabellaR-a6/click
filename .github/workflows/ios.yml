@@ -106,3 +106,28 @@ jobs:
             click.ipa
             build.log
           fail_on_unmatched_files: false
+
+      # Fonte do SideStore: com ela o jogo aparece dentro do app com botao
+      # "Atualizar", em vez de baixar .ipa na mao a cada build.
+      # O commit leva [skip ci] para nao disparar o workflow de novo.
+      - name: Gerar source.json
+        if: always()
+        continue-on-error: true
+        env:
+          IPA_NAME: click.ipa
+          REPO: ${{ github.repository }}
+          TAG: build-${{ github.run_number }}
+          SOURCE_NOME: "Jogos da Isabella"
+          SOURCE_ID: "br.isabellaradael.source.click"
+          APP_NOME: "Cabo de Guerra"
+          APP_BUNDLE_ID: "br.isabellaradael.click"
+          APP_SUBTITULO: "Cabo de guerra numerico para dois"
+          APP_DESCRICAO: "Dois jogadores, um celular. Cada lado toca na sua metade da tela para puxar o placar. Quem chegar a 5 primeiro ganha."
+          APP_ICONE_URL: "https://raw.githubusercontent.com/isabellaR-a6/click/main/src/assets/icon.png"
+        run: |
+          python3 tools/gerar_source.py 2>&1 | tee -a build.log || exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add source.json
+          git commit -m "Atualiza source.json para ${TAG} [skip ci]" || exit 0
+          git push
