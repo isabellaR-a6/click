@@ -1,8 +1,11 @@
 name: Build iOS (.ipa sem assinatura)
 
-# Roda em runner macOS do GitHub — gratis para repositorio publico.
-# O .ipa sai SEM assinatura de proposito: quem assina e o SideStore
-# no iPhone, usando o Apple ID gratuito da Isabella.
+# Runner macOS do GitHub — gratis em repositorio publico.
+# O .ipa sai SEM assinatura de proposito: quem assina e o SideStore,
+# no iPhone, com Apple ID gratuito.
+#
+# O log do build vai junto na Release porque log de Actions exige login
+# para ler, e Release e download publico.
 
 on:
   push:
@@ -15,7 +18,7 @@ permissions:
 jobs:
   ipa:
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v4
@@ -25,67 +28,77 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Flutter (o Flet compila por cima dele)
+      - name: Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - name: Versoes do ambiente
-        run: |
-          echo "--- xcode ---";      xcodebuild -version
-          echo "--- cocoapods ---";  pod --version
-          echo "--- flutter ---";    flutter --version
-
       - name: Instalar Flet
         run: |
           python -m pip install --upgrade pip
           pip install "flet[all]==0.86.5"
-          flet --version
 
-      # Sem credencial de assinatura o Flet nao consegue fechar o .ipa
-      # sozinho — ele para no .xcarchive. Isso e esperado, nao e erro.
-      - name: Build iOS
-        run: flet build ipa -v --flutter-build-args=--no-codesign
-        continue-on-error: true
-
-      - name: Empacotar o .app num .ipa
+      - name: Ambiente
         run: |
-          set -e
+          {
+            echo "===== ambiente ====="
+            xcodebuild -version
+            echo "cocoapods: $(pod --version)"
+            flutter --version
+            echo "flet: $(flet --version)"
+          } 2>&1 | tee -a build.log
+
+      - name: Build iOS
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flet build ipa -v --flutter-build-args=--no-codesign 2>&1 | tee -a build.log
+
+      - name: Inventario da saida
+        if: always()
+        run: |
+          {
+            echo "===== resultado do flet: ${{ steps.build.outcome }} ====="
+            echo "===== arvore build/ ====="
+            find build -maxdepth 5 2>/dev/null || echo "(pasta build nao existe)"
+            echo "===== .app ====="
+            find . ~/Library/Developer/Xcode/DerivedData -name '*.app' -type d 2>/dev/null | head -20
+            echo "===== .xcarchive ====="
+            find . ~/Library/Developer/Xcode/DerivedData -name '*.xcarchive' -type d 2>/dev/null | head -20
+          } 2>&1 | tee -a build.log
+          echo "--- ultimas 60 linhas ---"; tail -60 build.log
+
+      - name: Empacotar em .ipa (se houver .app)
+        if: always()
+        continue-on-error: true
+        run: |
           APP="$(find build ~/Library/Developer/Xcode/DerivedData -name '*.app' -type d \
                  -path '*Products/Applications*' 2>/dev/null | head -1)"
           if [ -z "$APP" ]; then
             APP="$(find build -name '*.app' -type d 2>/dev/null | head -1)"
           fi
-          if [ -z "$APP" ]; then
-            echo "ERRO: nenhum .app encontrado. Arvore de build:"
-            find build -maxdepth 4 2>/dev/null || echo "(pasta build nao existe)"
-            exit 1
+          if [ -n "$APP" ]; then
+            echo "app: $APP" | tee -a build.log
+            rm -rf Payload && mkdir -p Payload
+            cp -R "$APP" Payload/
+            zip -qry click.ipa Payload
+            ls -lh click.ipa | tee -a build.log
+          else
+            echo "nenhum .app gerado — publicando so o log" | tee -a build.log
           fi
-          echo "app encontrado: $APP"
-          rm -rf Payload && mkdir -p Payload
-          cp -R "$APP" Payload/
-          zip -qry click.ipa Payload
-          ls -lh click.ipa
 
-      - name: Publicar como Release (download direto no iPhone)
+      - name: Publicar (.ipa quando existir, log sempre)
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: "Cabo de Guerra - build ${{ github.run_number }}"
+          name: "build ${{ github.run_number }}"
           body: |
             .ipa sem assinatura, para instalar pelo SideStore.
-            Baixe no Safari do iPhone e abra no SideStore.
-          files: click.ipa
-          fail_on_unmatched_files: true
-
-      # Se algo falhar, sobem os logs para diagnostico
-      - name: Logs (so em caso de falha)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: logs-falha
-          path: |
-            build/**/*.log
-            /Users/runner/Library/Logs/gym/*.log
-          if-no-files-found: ignore
+            build.log vai junto para diagnostico.
+          files: |
+            click.ipa
+            build.log
+          fail_on_unmatched_files: false
