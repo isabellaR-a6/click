@@ -1,0 +1,23 @@
+[project]
+name = "click"
+version = "1.0.0"
+description = "Cabo de Guerra Numerico"
+requires-python = ">=3.12"
+dependencies = [
+    "flet==0.86.5",
+]
+
+[tool.flet]
+org = "br.isabellaradael"
+product = "Cabo de Guerra"
+company = "Isabella Radael"
+copyright = "Isabella Radael"
+build_number = 1
+
+[tool.flet.app]
+path = "src"
+
+[tool.flet.ios]
+# Build sem assinatura: o Flet produz um .xcarchive.
+# O workflow extrai o .app de dentro dele e monta o .ipa manualmente,
+# porque quem assina no fim e o SideStore, com o Apple ID da Isabella.

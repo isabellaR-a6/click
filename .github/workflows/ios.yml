@@ -1,0 +1,91 @@
+name: Build iOS (.ipa sem assinatura)
+
+# Roda em runner macOS do GitHub — gratis para repositorio publico.
+# O .ipa sai SEM assinatura de proposito: quem assina e o SideStore
+# no iPhone, usando o Apple ID gratuito da Isabella.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Flutter (o Flet compila por cima dele)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Versoes do ambiente
+        run: |
+          echo "--- xcode ---";      xcodebuild -version
+          echo "--- cocoapods ---";  pod --version
+          echo "--- flutter ---";    flutter --version
+
+      - name: Instalar Flet
+        run: |
+          python -m pip install --upgrade pip
+          pip install "flet[all]==0.86.5"
+          flet --version
+
+      # Sem credencial de assinatura o Flet nao consegue fechar o .ipa
+      # sozinho — ele para no .xcarchive. Isso e esperado, nao e erro.
+      - name: Build iOS
+        run: flet build ipa -v --flutter-build-args=--no-codesign
+        continue-on-error: true
+
+      - name: Empacotar o .app num .ipa
+        run: |
+          set -e
+          APP="$(find build ~/Library/Developer/Xcode/DerivedData -name '*.app' -type d \
+                 -path '*Products/Applications*' 2>/dev/null | head -1)"
+          if [ -z "$APP" ]; then
+            APP="$(find build -name '*.app' -type d 2>/dev/null | head -1)"
+          fi
+          if [ -z "$APP" ]; then
+            echo "ERRO: nenhum .app encontrado. Arvore de build:"
+            find build -maxdepth 4 2>/dev/null || echo "(pasta build nao existe)"
+            exit 1
+          fi
+          echo "app encontrado: $APP"
+          rm -rf Payload && mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry click.ipa Payload
+          ls -lh click.ipa
+
+      - name: Publicar como Release (download direto no iPhone)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "Cabo de Guerra - build ${{ github.run_number }}"
+          body: |
+            .ipa sem assinatura, para instalar pelo SideStore.
+            Baixe no Safari do iPhone e abra no SideStore.
+          files: click.ipa
+          fail_on_unmatched_files: true
+
+      # Se algo falhar, sobem os logs para diagnostico
+      - name: Logs (so em caso de falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-falha
+          path: |
+            build/**/*.log
+            /Users/runner/Library/Logs/gym/*.log
+          if-no-files-found: ignore
