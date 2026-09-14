@@ -97,6 +97,11 @@ jobs:
             DEST="Payload/$(basename "$APP")"
             PB=/usr/libexec/PlistBuddy
             PL="$DEST/Info.plist"
+
+            # versao igual a do source.json (tools/gerar_source.py): se nao bater,
+            # o SideStore recusa a instalacao com erro de versao
+            "$PB" -c "Set :CFBundleShortVersionString 1.0.${{ github.run_number }}" "$PL"
+            "$PB" -c "Set :CFBundleVersion ${{ github.run_number }}" "$PL"
             if [ -f arte/icone_180.png ] && [ -f arte/icone_120.png ]; then
               cp arte/icone_180.png "$DEST/AppIcon60x60@3x.png"
               cp arte/icone_120.png "$DEST/AppIcon60x60@2x.png"
